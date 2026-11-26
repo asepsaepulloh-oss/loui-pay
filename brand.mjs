@@ -64,3 +64,32 @@ const pages = readFileSync(portalPath,"utf8")
   .replace("</style>", pageStyles+"</style>")
   .replace("<head>",'<head><meta name="viewport" content="width=device-width,initial-scale=1">');
 writeFileSync(portalPath,pages);
+import { Script } from "node:vm";
+const fixedPortal = pages.replace("const creds: Record<string, string> = {};", "const creds = {};")
+  .replace(">Sign in</a>", ">Masuk</a>");
+for (const match of fixedPortal.matchAll(/<script>([\s\S]*?)<\/script>/gi)) new Script(match[1]);
+writeFileSync(portalPath, fixedPortal);
+const routes={pageLanding:"/register",pageLogin:"/login",pageKeyReveal:"/register/keys",pageSetup:"/setup",pageDashboard:"/dashboard"};
+const tabRoutes={overview:"/dashboard",transactions:"/dashboard/transactions",refunds:"/dashboard/refunds",gateways:"/dashboard/gateways",methods:"/dashboard/methods",deliveries:"/dashboard/webhooks",settings:"/dashboard/settings",platform:"/admin"};
+const entry=readFileSync("src/app.ts","utf8");
+writeFileSync("src/app.ts",entry.replace('app.get("/dashboard", async (c) => {','app.on("GET", '+JSON.stringify([...new Set([...Object.values(routes),...Object.values(tabRoutes)])])+', async (c) => {'));
+let routed=fixedPortal.replace('class="page center-page active"','class="page center-page"').replaceAll('href="#" onclick="showPage(\'pageLogin\'); return false;"','href="/login"').replaceAll('href="#" onclick="showPage(\'pageLanding\'); return false;"','href="/register"');
+routed=routed.replace('function showPage(id) {',`const routes=${JSON.stringify(routes)},tabRoutes=${JSON.stringify(tabRoutes)};
+    function navigate(path){if(location.pathname!==path)history.pushState({},'',path);}
+    function showPage(id, change=true) {
+      if(change)navigate(routes[id]);`).replace('function dashTab(name, btn) {','function dashTab(name, btn) { if(name!=="platform" && !token){location.replace("/login");return;} navigate(tabRoutes[name]);')
+.replace("if (!token) { showPage('pageLanding'); return; }",`const path=location.pathname.replace(/\\/$/,'')||'/dashboard';
+      if(path==='/register'){showPage('pageLanding',false);return;}
+      if(path==='/admin'){showPage('pageDashboard',false);dashTab('platform',document.querySelector('[onclick^="dashTab(\\'platform"]'));return;}
+      if(!token){if(path!=='/login'){location.replace('/login');return;}showPage('pageLogin',false);return;}`)
+.replace("if (test && test.success) { showPage('pageDashboard'); loadDashboard(); }",`if(test && test.success){
+        if(path==='/setup'){showPage('pageSetup',false);return;}
+        const tab=Object.keys(tabRoutes).find(k=>tabRoutes[k]===path)||'overview';
+        if(path!==tabRoutes[tab])history.replaceState({},'',tabRoutes[tab]);
+        showPage('pageDashboard',false);dashTab(tab,document.querySelector('[onclick^="dashTab(\\''+tab+'\\'"]'));if(tab==='overview')loadDashboard();
+      }`).replace("token = ''; showPage('pageLanding');","token = ''; history.replaceState({},'', '/login');showPage('pageLogin',false);")
+.replace('function logout() {','function logout() { logoutAdmin();')
+.replace('// Auto-login','// Auto-login');
+routed=routed.replace('</script>',"window.addEventListener('popstate',()=>location.reload());</script>");
+for(const m of routed.matchAll(/<script>([\s\S]*?)<\/script>/gi))new Script(m[1]);
+writeFileSync(portalPath,routed);
