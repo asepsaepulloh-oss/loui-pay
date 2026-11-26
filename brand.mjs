@@ -10,3 +10,10 @@ for(const file of ["src/dashboard/index.html","src/landing/payment-done.html"]){
  for(const [from,to] of labels) page=page.replaceAll(from,to);
  writeFileSync(file,page);
 }
+function patch(file, before, after) {
+  const source = readFileSync(file,"utf8");
+  if (!source.includes(before)) throw new Error("Unexpected upstream source: " + file);
+  writeFileSync(file,source.replace(before,after));
+}
+patch("src/index.ts",'hostname: "127.0.0.1"','hostname: "0.0.0.0"');
+patch("src/middleware/rate-limit.ts",'const cfIp = c.req.header("CF-Connecting-IP");','const cfIp = undefined;');
