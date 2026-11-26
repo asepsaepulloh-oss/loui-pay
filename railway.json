@@ -1,0 +1,1 @@
+{"build":{"builder":"DOCKERFILE","dockerfilePath":"Dockerfile"},"deploy":{"startCommand":"bun run src/index.ts","healthcheckPath":"/health","healthcheckTimeout":120}}
