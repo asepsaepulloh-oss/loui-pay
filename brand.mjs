@@ -59,3 +59,8 @@ input:focus,select:focus{border-color:#7161d5}.dash-layout{display:grid;grid-tem
 let scriptIndex=0;portal=portal.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,()=>originalScripts[scriptIndex++]);
 writeFileSync(portalPath,portal);
 
+const pageStyles = ".page:not(.active){display:none}.page.active{display:flex;min-height:100vh;min-height:100dvh;width:100%}";
+const pages = readFileSync(portalPath,"utf8")
+  .replace("</style>", pageStyles+"</style>")
+  .replace("<head>",'<head><meta name="viewport" content="width=device-width,initial-scale=1">');
+writeFileSync(portalPath,pages);
